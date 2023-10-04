@@ -6,9 +6,18 @@ int Error(const char* text, DWORD error = GetLastError()) {
 	return 1;
 }
 
-bool ClassicalInjection(int pid, wchar_t* dllpath)
+bool HollowingInjection(int pid, wchar_t* dllpath)
 {
-	HANDLE hProcess = OpenProcess(PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_CREATE_THREAD,
+	LPSTARTUPINFOA si = new STARTUPINFOA();
+	LPPROCESS_INFORMATION pi = new PROCESS_INFORMATION();
+	//PROCESS_BASIC_INFORMATION* pbi = new PROCESS_BASIC_INFORMATION();
+
+	return true;
+}
+
+bool ClassicalInjection(DWORD pid, LPCSTR dllpath)
+{
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS,
 		FALSE, pid);
 
 	if (!hProcess) {
@@ -16,21 +25,20 @@ bool ClassicalInjection(int pid, wchar_t* dllpath)
 	}
 
 	// Allocate memory in the remote process.
-	void* buffer = VirtualAllocEx(hProcess, nullptr, 1 << 12, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	LPVOID buffer = VirtualAllocEx(hProcess, 0, strlen(dllpath) + 1, MEM_COMMIT, PAGE_READWRITE);
 	if (!buffer) {
 		return Error("Failed to allocate memory\n");
 	}
 
 	// Write the DLL path to the remote process.
-	DWORD bytesWritten;
-	if (!WriteProcessMemory(hProcess, buffer, dllpath, (wcslen(dllpath + 1) * sizeof(WCHAR)), nullptr)) {
+	if (!WriteProcessMemory(hProcess, buffer, (LPVOID)dllpath, strlen(dllpath)+1 , 0)) {
 		return Error("Failed to write to process\n");
 	}
 
 	// Create a remote thread to load the DLL.
-	HANDLE hThread = CreateRemoteThread(hProcess, nullptr, 0,
-		(LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandle(L"kernel32"), "LoadLibraryW"),
-		buffer, 0, nullptr);
+	HANDLE hThread = CreateRemoteThread(hProcess, 0, 0,
+		(LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("Kernel32"), "LoadLibraryA"),
+		buffer, 0, 0);
 
 	if (!hThread) {
 		return Error("Failed to create thread\n");
@@ -52,24 +60,16 @@ bool ClassicalInjection(int pid, wchar_t* dllpath)
 
                                                                                                         
 
-int wmain(int argc, const wchar_t* argv[])
+int main(int argc, const wchar_t* argv[])
 {
-	printf("[-] Welcome to   \n"
-		" _______ _________ _       _________ _______  _______ _________ _______  _______        _  _        _   \n"
-		"(  ____ )\\__   __/( (    /|\\__    _/(  ____ \\(  ____ \\\\__   __/(  ___  )(  ____ )      ( )/ )      ( \\  \n"
-		"| (    )|   ) (   |  \\  ( |   )  (  | (    \\/| (    \\/   ) (   | (   ) || (    )|      |// /___  ___\\ \\ \n"
-		"| (____)|   | |   |   \\ | |   |  |  | (__    | |         | |   | |   | || (____)|       / /(___)(___)) )\n"
-		"|  _____)   | |   | (\\ \\) |   |  |  |  __)   | |         | |   | |   | ||     __)      ( (  ___  ___ | |\n"
-		"| (         | |   | | \\   |   |  |  | (      | |         | |   | |   | || (\\ (          \\ \\(___)(___)) )\n"
-		"| )      ___) (___| )  \\  ||\\_)  )  | (____/\\| (____/\\   | |   | (___) || ) \\ \\__        \\ \\        / / \n"
-		"|/       \\_______/|/    )_)(____/   (_______/(_______/   )_(   (_______)|/   \\__/         \\_)      (_/  \n"
+	printf(
 		"======================================\n"
 		"[-] Select your injection method : \n"
 		" |-- [+] 1.Classical RemoteThread\n"
 		" |-- [+] 2.Process Hollowing\n");
 	int input;
-	int pid = -1;
-	wchar_t dllpath[MAX_PATH];
+	DWORD pid = 0;
+	LPCSTR dllpath = "C:\\Users\\theob\\Desktop\\workshop\\ProcessInjector\\x64\\Release\\injecteddll.dll";
 
 	scanf_s("%d", &input);
 
@@ -79,14 +79,9 @@ int wmain(int argc, const wchar_t* argv[])
 		printf("[+]Classical injection selected\n");
 		printf("[+]Enter Pid:\n");
 		scanf_s("%d", &pid);
-		printf("[+]Enter DllPath:\n");
-		scanf_s("%s", dllpath, _countof(dllpath));
-
-		// Check if the DLL path is valid.
-		if (wcslen(dllpath) == 0) {
-			Error("Invalid DLL path");
-			return 1;
-		}
+		//printf("[+]Enter DllPath:\n");
+		//scanf_s("%s", dllpath, strlen(dllpath));
+	
 		// Inject the DLL.
 		ClassicalInjection(pid, dllpath);
 		break;
