@@ -44,7 +44,7 @@ bool ClassicalInjection(int pid, wchar_t* dllpath)
 	CloseHandle(hProcess);
 
 	// Print a success message.
-	printf("Successfully injected the DLL !");
+	printf("Successfully injected the DLL !!");
 
 	return true;
 }
